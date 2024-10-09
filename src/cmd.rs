@@ -2,9 +2,8 @@
 
 use core::future::Future;
 
-use embedded_io::ErrorType;
-
 use crate::controller::{ControllerCmdAsync, ControllerCmdSync};
+use crate::error::ErrorType;
 use crate::{param, FixedSizeValue, FromHciBytes, HostToControllerPacket, PacketKind, WriteHci};
 
 pub mod controller_baseband;

@@ -11,6 +11,7 @@ mod fmt;
 pub mod cmd;
 pub mod controller;
 pub mod data;
+pub mod error;
 pub mod event;
 pub mod param;
 pub mod transport;

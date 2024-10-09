@@ -9,10 +9,10 @@ use cmd::controller_baseband::Reset;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::signal::Signal;
 use embassy_sync::waitqueue::AtomicWaker;
-use embedded_io::ErrorType;
 use futures_intrusive::sync::LocalSemaphore;
 
 use crate::cmd::{Cmd, CmdReturnBuf};
+use crate::error::ErrorType;
 use crate::event::{CommandComplete, Event};
 use crate::param::{RemainingBytes, Status};
 use crate::transport::Transport;
@@ -33,16 +33,94 @@ pub trait Controller: ErrorType {
     fn read<'a>(&self, buf: &'a mut [u8]) -> impl Future<Output = Result<ControllerToHostPacket<'a>, Self::Error>>;
 }
 
+impl<T> Controller for &T
+where
+    T: Controller,
+{
+    fn write_acl_data(&self, packet: &data::AclPacket) -> impl Future<Output = Result<(), Self::Error>> {
+        (**self).write_acl_data(packet)
+    }
+
+    fn write_sync_data(&self, packet: &data::SyncPacket) -> impl Future<Output = Result<(), Self::Error>> {
+        (**self).write_sync_data(packet)
+    }
+
+    fn write_iso_data(&self, packet: &data::IsoPacket) -> impl Future<Output = Result<(), Self::Error>> {
+        (**self).write_iso_data(packet)
+    }
+
+    fn read<'a>(&self, buf: &'a mut [u8]) -> impl Future<Output = Result<ControllerToHostPacket<'a>, Self::Error>> {
+        (**self).read(buf)
+    }
+}
+
+impl<T> Controller for &mut T
+where
+    T: Controller,
+{
+    fn write_acl_data(&self, packet: &data::AclPacket) -> impl Future<Output = Result<(), Self::Error>> {
+        (**self).write_acl_data(packet)
+    }
+
+    fn write_sync_data(&self, packet: &data::SyncPacket) -> impl Future<Output = Result<(), Self::Error>> {
+        (**self).write_sync_data(packet)
+    }
+
+    fn write_iso_data(&self, packet: &data::IsoPacket) -> impl Future<Output = Result<(), Self::Error>> {
+        (**self).write_iso_data(packet)
+    }
+
+    fn read<'a>(&self, buf: &'a mut [u8]) -> impl Future<Output = Result<ControllerToHostPacket<'a>, Self::Error>> {
+        (**self).read(buf)
+    }
+}
+
 /// Marker trait for declaring that a controller supports a given HCI command.
 pub trait ControllerCmdSync<C: cmd::SyncCmd + ?Sized>: Controller {
     /// Note: Some implementations may require [`Controller::read()`] to be polled for this to return.
     fn exec(&self, cmd: &C) -> impl Future<Output = Result<C::Return, cmd::Error<Self::Error>>>;
 }
 
+impl<T, C: cmd::SyncCmd + ?Sized> ControllerCmdSync<C> for &T
+where
+    T: ControllerCmdSync<C>,
+{
+    fn exec(&self, cmd: &C) -> impl Future<Output = Result<C::Return, cmd::Error<Self::Error>>> {
+        (**self).exec(cmd)
+    }
+}
+
+impl<T, C: cmd::SyncCmd + ?Sized> ControllerCmdSync<C> for &mut T
+where
+    T: ControllerCmdSync<C>,
+{
+    fn exec(&self, cmd: &C) -> impl Future<Output = Result<C::Return, cmd::Error<Self::Error>>> {
+        (**self).exec(cmd)
+    }
+}
+
 /// Marker trait for declaring that a controller supports a given async HCI command.
 pub trait ControllerCmdAsync<C: cmd::AsyncCmd + ?Sized>: Controller {
     /// Note: Some implementations may require [`Controller::read()`] to be polled for this to return.
     fn exec(&self, cmd: &C) -> impl Future<Output = Result<(), cmd::Error<Self::Error>>>;
+}
+
+impl<T, C: cmd::AsyncCmd + ?Sized> ControllerCmdAsync<C> for &T
+where
+    T: ControllerCmdAsync<C>,
+{
+    fn exec(&self, cmd: &C) -> impl Future<Output = Result<(), cmd::Error<Self::Error>>> {
+        (**self).exec(cmd)
+    }
+}
+
+impl<T, C: cmd::AsyncCmd + ?Sized> ControllerCmdAsync<C> for &mut T
+where
+    T: ControllerCmdAsync<C>,
+{
+    fn exec(&self, cmd: &C) -> impl Future<Output = Result<(), cmd::Error<Self::Error>>> {
+        (**self).exec(cmd)
+    }
 }
 
 /// An external Bluetooth controller with communication via [`Transport`] type `T`.

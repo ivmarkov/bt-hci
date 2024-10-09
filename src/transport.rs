@@ -4,13 +4,14 @@ use core::future::Future;
 
 use embassy_sync::blocking_mutex::raw::RawMutex;
 use embassy_sync::mutex::Mutex;
-use embedded_io::{ErrorType, ReadExactError};
+use embedded_io::ReadExactError;
 
 use crate::controller::blocking::TryError;
+use crate::error::ErrorType;
 use crate::{ControllerToHostPacket, FromHciBytesError, HostToControllerPacket, ReadHci, ReadHciError, WriteHci};
 
 /// A packet-oriented HCI Transport Layer
-pub trait Transport: embedded_io::ErrorType {
+pub trait Transport: ErrorType {
     /// Read a complete HCI packet into the rx buffer
     fn read<'a>(&self, rx: &'a mut [u8]) -> impl Future<Output = Result<ControllerToHostPacket<'a>, Self::Error>>;
     /// Write a complete HCI packet from the tx buffer
@@ -166,7 +167,7 @@ pub mod blocking {
     use crate::controller::blocking::TryError;
 
     /// A packet-oriented HCI Transport Layer
-    pub trait Transport: embedded_io::ErrorType {
+    pub trait Transport: ErrorType {
         /// Read a complete HCI packet into the rx buffer
         fn read<'a>(&self, rx: &'a mut [u8]) -> Result<ControllerToHostPacket<'a>, TryError<Self::Error>>;
         /// Write a complete HCI packet from the tx buffer
